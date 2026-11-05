@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="vi"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>TROLYSKKN · AI SKKN PRO – Trợ lý sáng kiến kinh nghiệm</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css"></head>
+<body>
+<header><div class="brand"><div class="logo">SK</div><div><h1>TROLYSKKN · AI SKKN PRO</h1><p>Trợ lý sáng kiến kinh nghiệm — viết, lập hồ sơ, tự kiểm tra</p></div></div>
+<div class="prog"><span id="progTxt">Hồ sơ hoàn thành 0%</span><div class="bar"><i id="progBar"></i></div></div></header>
+
+<div class="notice"><b>⚠ Lưu ý trung thực:</b> AI chỉ hỗ trợ <b>bản thảo</b>; Hội đồng có thẩm quyền mới quyết định công nhận. Không bịa số liệu, tên người, kết quả — chỗ thiếu sẽ ghi <code>[CẦN BỔ SUNG]</code>. <b>Không đưa dữ liệu thật của học sinh</b> (họ tên, điểm cá nhân) lên AI. Điểm AI chỉ <b>tham khảo</b>. Biểu mẫu mặc định là <b>khung tham khảo</b> theo NĐ 13/2012/NĐ-CP, TT 18/2013/TT-BKHCN và thực tiễn ngành GD — <b>không phải mẫu chính thức của tỉnh/thành nào</b> trừ khi thầy cô tải quy định địa phương lên.</div>
+
+<nav id="tabs">
+<button data-t="t0" class="on">🔑 Khóa AI & hồ sơ</button>
+<button data-t="t1">① Tạo sáng kiến / nhập liệu</button>
+<button data-t="t2">② AI phân tích & đề cương</button>
+<button data-t="t3">③ AI viết báo cáo</button>
+<button data-t="t4">④ Biểu mẫu hồ sơ</button>
+<button data-t="t5">⑤ AI chấm điểm tham khảo</button>
+<button data-t="t6">⑥ Kiểm tra hoàn thiện</button>
+<button data-t="t7">⑦ Xuất hồ sơ</button>
+</nav>
+<div id="status" class="status"></div>
+<main>
+<section id="t0" class="tab on">
+ <div class="card"><h2>Khóa Gemini (miễn phí, dán một lần)</h2>
+ <p>Tạo khóa tại <a href="https://aistudio.google.com/apikey" target="_blank">aistudio.google.com/apikey</a>. Khóa chỉ lưu trong trình duyệt này (dùng chung với Bút Ký AI — đã lưu bên đó thì không cần dán lại).</p>
+ <div class="row"><input id="apiKey" type="password" placeholder="Dán khóa AIza..."><button id="saveKey">Lưu khóa</button><button id="clearKey" class="ghost">Xóa khóa</button></div>
+ <p id="keyStatus" class="muted"></p></div>
+ <div class="card"><h2>Quản lý hồ sơ (lưu trên máy này)</h2>
+ <div class="row"><button id="newDoc">+ Tạo hồ sơ mới</button><button id="saveDoc">💾 Lưu hồ sơ hiện tại</button><button id="backup" class="ghost">⬇ Sao lưu tất cả (.json)</button><label class="btn ghost">⬆ Phục hồi<input id="restore" type="file" accept=".json" hidden></label></div>
+ <input id="filter" placeholder="Lọc theo năm học, tác giả, đơn vị, lĩnh vực, cấp xét…">
+ <div id="docList"></div></div>
+ <div class="card"><h2>Quy trình 10 bước</h2><ol class="steps"><li>Nhập tên đề tài</li><li>AI phân tích, đề cương</li><li>Bổ sung thông tin thực tế, tải tư liệu</li><li>AI viết báo cáo từng phần</li><li>Thầy cô đọc, sửa, xác nhận</li><li>AI tạo đơn, báo cáo tóm tắt, biểu mẫu</li><li>Phụ lục, danh mục minh chứng từ dữ liệu thật</li><li>AI chấm điểm tham khảo</li><li>Kiểm tra đầy đủ, logic, pháp lý</li><li>Xuất bộ hồ sơ Word/ZIP</li></ol></div>
+</section>
+
+<section id="t1" class="tab"><div class="card"><h2>Thông tin sáng kiến</h2><div class="grid" id="form"></div>
+<h3>Tư liệu tải lên (.docx, .pdf, .txt, .md)</h3>
+<p class="muted">Công văn hướng dẫn, quy định/phiếu chấm, mẫu đơn, mẫu báo cáo, SKKN cũ, tài liệu chuyên môn. PDF dạng ảnh scan sẽ không đọc được — hãy dán văn bản vào ô ghi chú.</p>
+<div class="row"><select id="docType"><option value="huongdan">Công văn/quy định hướng dẫn địa phương</option><option value="phieucham">Phiếu chấm / tiêu chí chấm điểm</option><option value="mau">Mẫu đơn / mẫu báo cáo / phụ lục</option><option value="skkncu">SKKN cũ tham khảo</option><option value="chuyenmon">Tài liệu chuyên môn / số liệu thật</option></select><input id="files" type="file" multiple accept=".docx,.pdf,.txt,.md"></div>
+<div id="fileList"></div></div></section>
+
+<section id="t2" class="tab"><div class="card"><h2>AI phân tích đề tài & đề cương</h2><button id="runAnalyze" class="big">✨ Phân tích đề tài</button>
+<textarea id="analysis" rows="24" placeholder="Kết quả phân tích sẽ hiện ở đây — thầy cô sửa trực tiếp được."></textarea></div></section>
+
+<section id="t3" class="tab"><div class="card"><h2>AI viết báo cáo sáng kiến</h2>
+<p class="muted">Viết 3 lượt (Phần I–II, Phần III, Phần IV–VII) để báo cáo đủ dài. Có thể viết lại riêng từng phần.</p>
+<div class="row"><button id="runReport" class="big">✍ Viết toàn bộ báo cáo</button><button data-part="0" class="ghost rp">Viết lại Phần I–II</button><button data-part="1" class="ghost rp">Viết lại Phần III</button><button data-part="2" class="ghost rp">Viết lại Phần IV–VII</button><button id="togglePrev" class="ghost">👁 Xem trước / Sửa</button></div>
+<textarea id="report" rows="30" placeholder="Bản thảo báo cáo (# PHẦN, ## mục, ### tiểu mục, bảng dạng | a | b |)"></textarea>
+<div id="reportPrev" class="preview" hidden></div></div></section>
+
+<section id="t4" class="tab"><div class="card"><h2>Biểu mẫu hồ sơ</h2><p class="muted">Chọn biểu mẫu cần lập. Nếu đã tải quy định/mẫu địa phương, AI sẽ theo tên gọi và trường thông tin trong đó; nếu chưa, dùng khung tham khảo.</p>
+<div id="formChecks" class="checks"></div><button id="runForms" class="big">📄 Tạo biểu mẫu đã chọn</button>
+<div id="formsOut"></div></div></section>
+
+<section id="t5" class="tab"><div class="card"><h2>AI chấm điểm tham khảo</h2><p id="rubricNote" class="muted"></p>
+<button id="runScore" class="big">🎯 Chấm điểm tham khảo</button><textarea id="score" rows="24"></textarea></div></section>
+
+<section id="t6" class="tab"><div class="card"><h2>Kiểm tra hoàn thiện</h2><div class="row"><button id="runCheck" class="big">🔍 AI kiểm tra chất lượng & trung thực</button></div>
+<h3>Các chỗ [CẦN BỔ SUNG] trong bản thảo</h3><ul id="missing"></ul>
+<textarea id="check" rows="22"></textarea></div></section>
+
+<section id="t7" class="tab"><div class="card"><h2>Xuất hồ sơ</h2><p>Word A4, Times New Roman 13–14, lề trái 3 cm, có số trang và mục lục tự động (khi mở Word chọn <b>Yes</b> để cập nhật mục lục). Mở bằng Word rồi “Lưu thành PDF” nếu cần bản PDF.</p>
+<div class="row"><label>Cỡ chữ <select id="fontSize"><option value="26">13</option><option value="28">14</option></select></label></div>
+<div class="row"><button id="expReport">⬇ Báo cáo sáng kiến (.docx)</button><button id="expForms">⬇ Các biểu mẫu (.docx)</button><button id="expZip" class="big">📦 Toàn bộ hồ sơ (.zip)</button><button id="expPrint" class="ghost">🖨 In / Lưu PDF báo cáo</button></div></div></section>
+</main>
+<footer>TROLYSKKN · AI SKKN PRO — phần mềm hỗ trợ miễn phí, chạy hoàn toàn trên trình duyệt. Dữ liệu chỉ lưu trên máy của thầy cô.</footer>
+<script src="https://cdn.jsdelivr.net/npm/mammoth@1.8.0/mammoth.browser.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/docx@8.5.0/build/index.umd.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/file-saver@2.0.5/dist/FileSaver.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js"></script>
+<script src="app.js"></script>
+</body></html>
