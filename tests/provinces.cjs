@@ -26,7 +26,7 @@ const fixture=(province,formSel=['khaosat'])=>({id:'legacy',f:{province,topic:'�
  assert.equal(get(w,'provinceSelect').options.length,35);
  assert.equal(w.testEval('new Set(PROVINCES.map(p=>p.id)).size'),34);
  assert.equal(w.testEval('PROVINCES.filter(p=>p.name.startsWith("Thành phố")).length'),6);
- assert(w.testEval('PROVINCES.every(p=>!p.legalRefs.length && JSON.stringify(p.suggestedForms)===JSON.stringify(FORMS.filter(f=>f[2]).map(f=>f[0])))'));
+ assert(w.testEval('PROVINCES.filter(p=>p.id!=="86").every(p=>!p.legalRefs.length && JSON.stringify(p.suggestedForms)===JSON.stringify(FORMS.filter(f=>f[2]).map(f=>f[0])))'));
  assert.equal(get(w,'provinceSelect').value,'');
  assert(!get(w,'provinceOtherLabel').hidden);
  assert.equal(state(w).formSel.length,7);
@@ -64,6 +64,35 @@ const fixture=(province,formSel=['khaosat'])=>({id:'legacy',f:{province,topic:'�
   assert(prompt.includes('Không dùng biểu mẫu tỉnh khác'));
   assert(prompt.includes('[CẦN KIỂM TRA HIỆU LỰC]'));
  }
+ // Verified Vĩnh Long pack: no invented point scale or mandatory school-year registration.
+ change(w,'provinceSelect','86');
+ assert.equal(get(w,'runScore').textContent,'Đánh giá tham khảo');
+ assert(get(w,'rubricNote').textContent.includes('hai tiêu chí'));
+ assert(state(w).formSel.includes('phieucham'));
+ assert(state(w).formSel.includes('tonghop'));
+ assert(!state(w).formSel.includes('dondk'));
+ assert(!state(w).formSel.includes('baocaodonvi'));
+ assert(get(w,'formChecks').textContent.includes('Mẫu 03'));
+ assert(get(w,'formChecks').textContent.includes('Mẫu 01'));
+ w.testEval("doc.files=[];doc.formSel=['phieucham','tonghop','baocaodonvi'];");
+ prompts.length=0;
+ await get(w,'runForms').onclick({target:get(w,'runForms')});
+ await get(w,'runScore').onclick({target:get(w,'runScore')});
+ await get(w,'runCheck').onclick({target:get(w,'runCheck')});
+ assert.equal(prompts.length,5);
+ assert(prompts[0].includes('Chỉ tiêu 1: Tính mới'));
+ assert(prompts[0].includes('Chỉ tiêu 2: Đã được áp dụng'));
+ assert(prompts[1].includes('tổng số thành viên Hội đồng CÓ MẶT'));
+ assert(prompts[2].includes('KHÔNG phải hồ sơ cá nhân'));
+ assert(prompts[3].includes('Chưa đủ căn cứ'));
+ assert(!prompts[3].includes('kèm điểm gợi ý thang 10'));
+ assert(!prompts[3].includes('| Điểm tối đa |'));
+ for(const prompt of prompts){assert(prompt.includes('62/2026/QĐ-UBND'));assert(prompt.includes('Sở Khoa học và Công nghệ tỉnh Vĩnh Long'));assert(prompt.includes('mỗi đơn chỉ một giải pháp'));}
+ // Uploaded scoring sheet retains priority.
+ w.testEval("doc.files=[{type:'phieucham',name:'sheet.txt',text:'Tiêu chí do người dùng tải'}];");
+ await get(w,'runScore').onclick({target:get(w,'runScore')});
+ assert(prompts.at(-1).includes('Dùng ĐÚNG phiếu chấm người dùng cung cấp'));
+ assert(prompts.at(-1).includes('Tiêu chí do người dùng tải'));
  change(w,'provinceSelect','');
  assert.equal(state(w).f.province,'');
  assert(w.provincePrompt().includes('khung tham khảo chung'));
@@ -84,5 +113,5 @@ const fixture=(province,formSel=['khaosat'])=>({id:'legacy',f:{province,topic:'�
  assert.equal(get(w,'provinceSelect').value,'');
  assert.equal(state(w).formSel.length,7);
  w.close();
- console.log('PASS: 34 provinces; default/custom/empty checklists; legacy/free-text/new dossiers; preserved generated text; form/score/check prompts; no live Gemini calls.');
+ console.log('PASS: 34 provinces; default/custom/empty checklists; legacy/free-text/new dossiers; preserved generated text; form/score/check prompts; verified Vĩnh Long Mẫu 01–03 and nonnumeric assessment; uploaded scoring priority; no live Gemini calls.');
 })().catch(e=>{console.error(e);process.exitCode=1;});
