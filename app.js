@@ -16,16 +16,25 @@ const FIELDS=[
  ['solutions','Giải pháp dự kiến/đã thực hiện (mỗi dòng một giải pháp)','area'],['results','Kết quả thực tế trước và sau khi áp dụng (số liệu thật)','area'],
  ['evidence','Minh chứng đang có (ảnh, sản phẩm, kế hoạch, phiếu khảo sát…)','area'],['notes','Ghi chú / văn bản dán thêm','area']];
 let doc=null;
-function blank(){return{id:Date.now().toString(36),f:{},files:[],analysis:'',report:'',forms:{},formSel:[],score:'',check:'',updated:''}}
+function blank(){return{id:Date.now().toString(36),f:{},files:[],analysis:'',report:'',forms:{},formSel:null,score:'',check:'',updated:''}}
 function renderForm(){
  $('form').innerHTML=FIELDS.map(([k,l,t,o])=>{
   const cls=(t==='area'||o==='wide')?'wide':'';
+  if(k==='province')return `<div><label>Tỉnh/thành phố<select id="provinceSelect">${[OTHER_PROVINCE,...PROVINCES].map(p=>`<option value="${p.id}">${esc(p.name)}</option>`).join('')}</select></label><label id="provinceOtherLabel" hidden>Tỉnh/thành phố khác (nếu có)<input id="provinceOther" placeholder="Tên địa phương đã lưu / nhập khác"></label></div>`;
   if(t==='select')return `<label>${l}<select data-k="${k}">${o.map(x=>`<option>${x}</option>`).join('')}</select></label>`;
   if(t==='area')return `<label class="${cls}">${l}<textarea data-k="${k}" rows="3"></textarea></label>`;
   return `<label class="${cls}">${l}<input data-k="${k}"></label>`;}).join('');
  $('form').querySelectorAll('[data-k]').forEach(el=>el.oninput=el.onchange=()=>{doc.f[el.dataset.k]=el.value;autosave();});
+ $('provinceSelect').onchange=()=>{const p=PROVINCES.find(p=>p.id===$('provinceSelect').value);doc.f.province=p?p.name:$('provinceOther').value;doc.formSel=[...(p||OTHER_PROVINCE).suggestedForms];syncProvinceUI();renderFormChecks();rubricNote();autosave();};
+ $('provinceOther').oninput=()=>{doc.f.province=$('provinceOther').value;renderFormChecks();rubricNote();autosave();};
+}
+function syncProvinceUI(){const p=findProvince(doc.f.province);$('provinceSelect').value=p?p.id:'';$('provinceOtherLabel').hidden=!!p;$('provinceOther').value=p?'':(doc.f.province||'');}
+function formName(k,n){return findProvince(doc.f.province)?.formLabels?.[k]||n;}
+function provincePrompt(){const p=findProvince(doc.f.province);if(!p)return 'Chưa chọn gói tỉnh/thành: dùng khung tham khảo chung NĐ 13/2012/NĐ-CP và TT 18/2013/TT-BKHCN cùng tư liệu tải lên; không suy diễn quy định địa phương. Không dùng biểu mẫu tỉnh khác. Chưa chắc hiệu lực → [CẦN KIỂM TRA HIỆU LỰC].';
+ return `===== GÓI KHUNG THAM KHẢO ĐỊA PHƯƠNG =====\nĐịa phương: ${p.name}\nTên Sở GDĐT (nếu cần ghi): ${p.department}\n${p.promptNotes}\n${p.legalRefs.length?'Căn cứ đã đối chiếu: '+JSON.stringify(p.legalRefs)+'\nNguồn: '+p.source:'Chưa có căn cứ pháp lý SKKN địa phương được xác minh trong gói. Dùng khung quốc gia NĐ 13/2012/NĐ-CP và TT 18/2013/TT-BKHCN.'} Chưa chắc hiệu lực hiện tại → [CẦN KIỂM TRA HIỆU LỰC]. Không bịa số hiệu, mẫu chính thức, danh mục bắt buộc hoặc thang điểm địa phương. Không dùng biểu mẫu tỉnh khác cho ${p.name}. Quy định/mẫu địa phương tải lên được ưu tiên hơn khung này; phiếu chấm tải lên là căn cứ chấm điểm. Nếu tệp thuộc tỉnh khác hoặc chưa rõ hiệu lực/phạm vi sau sắp xếp, nêu rõ để người dùng kiểm tra, không coi là quy định đang áp dụng.`;
 }
 function loadDocToUI(){
+ syncProvinceUI();
  $('form').querySelectorAll('[data-k]').forEach(el=>{const v=doc.f[el.dataset.k];if(v!==undefined)el.value=v;else if(el.tagName!=='SELECT')el.value='';else doc.f[el.dataset.k]=el.value;});
  ['analysis','report','score','check'].forEach(k=>$(k).value=doc[k]||'');
  renderFiles();renderFormChecks();renderFormsOut();rubricNote();progress();refreshMissing();
@@ -64,7 +73,7 @@ $('files').onchange=async e=>{for(const f of e.target.files){let text='';setStat
  doc.files.push({name:f.name,type:$('docType').value,text:text.slice(0,60000)});}
  e.target.value='';renderFiles();renderFormChecks();rubricNote();autosave();};
 function renderFiles(){$('fileList').innerHTML=doc.files.map((f,i)=>`<div class="fitem"><span>📎 <b>${esc(TYPES[f.type])}</b>: ${esc(f.name)} (${f.text.split(/\s+/).length} từ)</span><button class="ghost" data-d="${i}">✕</button></div>`).join('');
- $('fileList').querySelectorAll('[data-d]').forEach(b=>b.onclick=()=>{doc.files.splice(b.dataset.d,1);renderFiles();rubricNote();autosave();});}
+ $('fileList').querySelectorAll('[data-d]').forEach(b=>b.onclick=()=>{doc.files.splice(b.dataset.d,1);renderFiles();renderFormChecks();rubricNote();autosave();});}
 const filesOf=(...t)=>doc.files.filter(f=>t.includes(f.type));
 const filesText=(t,lim=20000)=>filesOf(...t).map(f=>`--- ${TYPES[f.type]}: ${f.name} ---\n${f.text.slice(0,lim)}`).join('\n\n');
 
@@ -96,7 +105,7 @@ const RULES=`NGUYÊN TẮC BẮT BUỘC (vi phạm là sai):
 - Không đưa thông tin cá nhân học sinh. Văn phong khoa học, hành chính chuẩn tiếng Việt, không emoji.
 - Định dạng: "# " cho PHẦN, "## " cho mục, "### " cho tiểu mục; bảng viết dạng Markdown | cột | cột |; không dùng ** đậm.`;
 function info(){const f=doc.f;return FIELDS.map(([k,l])=>`${l}: ${(f[k]||'').trim()||'[CHƯA CUNG CẤP]'}`).join('\n');}
-const ctx=()=>`===== THÔNG TIN NGƯỜI DÙNG CUNG CẤP =====\n${info()}\n\n===== TƯ LIỆU TẢI LÊN =====\n${filesText(['huongdan','mau','chuyenmon','skkncu'],15000)||'(không có)'}`;
+const ctx=()=>`${provincePrompt()}\n\n===== THÔNG TIN NGƯỜI DÙNG CUNG CẤP =====\n${info()}\n\n===== TƯ LIỆU TẢI LÊN =====\n${filesText(['huongdan','mau','chuyenmon','skkncu'],15000)||'(không có)'}`;
 
 /* ---------- Module 1 ---------- */
 $('runAnalyze').onclick=e=>run(e.target,async()=>{if(!doc.f.topic)throw new Error('Nhập tên đề tài ở tab ① trước.');
@@ -156,30 +165,31 @@ const FORMS=[['dondk','Đơn đăng ký sáng kiến / phiếu đăng ký tên �
  ['denghi','Bản đề nghị công nhận sáng kiến (gửi Hội đồng)',0],['tudanhgia','Phiếu tự đánh giá tham khảo (KHÔNG phải phiếu của Hội đồng)',1],
  ['phieunx','Khung phiếu nhận xét, đánh giá sáng kiến (để trống cho Hội đồng)',0],['phieucham','Khung phiếu chấm điểm thành viên Hội đồng (để trống)',0],
  ['tonghop','Khung phiếu tổng hợp điểm & biên bản họp Hội đồng (để trống)',0],['khaosat','Mẫu phiếu khảo sát trước/sau (câu hỏi, để trống kết quả)',0],
- ['solieu','Phụ lục số liệu khảo sát trước – sau và bảng so sánh (từ dữ liệu thật)',0],['minhchung','Danh mục minh chứng',1]];
-function renderFormChecks(){if(!doc.formSel?.length)doc.formSel=FORMS.filter(x=>x[2]).map(x=>x[0]);
- $('formChecks').innerHTML=FORMS.map(([k,n])=>`<label><input type="checkbox" value="${k}" ${doc.formSel.includes(k)?'checked':''}> ${n}</label>`).join('')+(filesOf('huongdan','mau').length?'<p class="muted"><b>✓ Có quy định/mẫu địa phương</b> — AI sẽ bám theo.</p>':'<p class="muted">Chưa tải quy định/mẫu địa phương → dùng khung tham khảo.</p>');
+ ['solieu','Phụ lục số liệu khảo sát trước – sau và bảng so sánh (từ dữ liệu thật)',0],['minhchung','Danh mục minh chứng',1],['baocaodonvi','Báo cáo hoạt động sáng kiến của đơn vị — Mẫu 03 (Vĩnh Long, tùy chọn)',0]];
+function renderFormChecks(){if(!Array.isArray(doc.formSel))doc.formSel=[...(findProvince(doc.f.province)||OTHER_PROVINCE).suggestedForms];
+ const p=findProvince(doc.f.province);$('provinceNote').textContent=(p?'Gói đang dùng: '+p.name+' — '+p.department+'. ':'Chưa chọn gói tỉnh/thành — dùng khung quốc gia. ')+(p?.legalRefs.length?'Khung theo QĐ 62/2026/QĐ-UBND (hiệu lực 15/07/2026), Công báo số 51 ngày 06/07/2026. Đầu mối cấp tỉnh: '+p.leadAgency+'. Mẫu 01: hai tiêu chí Đạt/Không đạt; Mẫu 02: biên bản kiểm phiếu; Mẫu 03 tùy chọn cho đơn vị. Giáo dục công lập không bắt buộc đăng ký đầu năm học. ':'Đây là khung tham khảo, không phải mẫu chính thức; chưa xác minh yêu cầu riêng địa phương. ')+'Đối chiếu bản gốc và quy định hiện hành; quy định/mẫu tải lên được ưu tiên. Đổi tỉnh chỉ đặt lại ô chọn gợi ý, không xóa nội dung đã tạo.';
+ $('formChecks').innerHTML=FORMS.filter(([k])=>k!=='baocaodonvi'||p?.id==='86'||doc.formSel.includes(k)||doc.forms[k]).map(([k,n])=>`<label><input type="checkbox" value="${k}" ${doc.formSel.includes(k)?'checked':''}> ${formName(k,n)}</label>`).join('')+(filesOf('huongdan','mau').length?'<p class="muted"><b>✓ Có quy định/mẫu địa phương</b> — AI sẽ bám theo.</p>':'<p class="muted">Chưa tải quy định/mẫu địa phương → dùng khung tham khảo.</p>');
  $('formChecks').querySelectorAll('input').forEach(c=>c.onchange=()=>{doc.formSel=[...$('formChecks').querySelectorAll('input:checked')].map(x=>x.value);autosave();});}
-function renderFormsOut(){$('formsOut').innerHTML=FORMS.filter(([k])=>doc.forms[k]).map(([k,n])=>`<h3>${n}</h3><textarea data-f="${k}" rows="16">${esc(doc.forms[k])}</textarea>`).join('');
+function renderFormsOut(){$('formsOut').innerHTML=FORMS.filter(([k])=>doc.forms[k]).map(([k,n])=>`<h3>${formName(k,n)}</h3><textarea data-f="${k}" rows="16">${esc(doc.forms[k])}</textarea>`).join('');
  $('formsOut').querySelectorAll('[data-f]').forEach(t=>t.oninput=()=>{doc.forms[t.dataset.f]=t.value;autosave();});}
 $('runForms').onclick=e=>run(e.target,async()=>{const sel=FORMS.filter(([k])=>doc.formSel.includes(k));if(!sel.length)throw new Error('Chọn ít nhất một biểu mẫu.');
  const local=filesText(['huongdan','mau'],20000);const sum=(doc.report||doc.analysis||'').slice(0,14000);
- for(const [k,n] of sel){setStatus('Đang tạo: '+n+'…');
+ for(const [k,title] of sel){const n=formName(k,title);setStatus('Đang tạo: '+n+'…');
   doc.forms[k]=await callGemini(`Soạn biểu mẫu hồ sơ sáng kiến: "${n}" bằng tiếng Việt, sẵn sàng đưa vào Word.
-${local?`Có QUY ĐỊNH/MẪU CỦA ĐỊA PHƯƠNG do người dùng tải lên bên dưới — BÁM ĐÚNG tên gọi, bố cục, trường thông tin, thang điểm trong đó; ghi rõ căn cứ văn bản đó.`:`Chưa có mẫu địa phương: dùng khung THAM KHẢO theo Nghị định 13/2012/NĐ-CP và Thông tư 18/2013/TT-BKHCN, thực tiễn ngành giáo dục. Ghi ở đầu: "(Khung tham khảo – thầy cô đối chiếu mẫu chính thức của đơn vị xét duyệt)". Không tự đặt thang điểm và gọi là quy định.`}
+${local?`Có QUY ĐỊNH/MẪU CỦA ĐỊA PHƯƠNG do người dùng tải lên bên dưới — BÁM ĐÚNG tên gọi, bố cục, trường thông tin, thang điểm trong đó; ghi rõ căn cứ văn bản đó.`:findProvince(doc.f.province)?.legalRefs.length?'Dùng cấu trúc mẫu Vĩnh Long đã đối chiếu QĐ 62/2026/QĐ-UBND trong gói bên dưới; đây là bản thảo, cần đối chiếu bản gốc trước khi nộp. Không gọi là đã có xác nhận của Hội đồng.':`Chưa có mẫu địa phương: dùng khung THAM KHẢO theo Nghị định 13/2012/NĐ-CP và Thông tư 18/2013/TT-BKHCN, thực tiễn ngành giáo dục. Ghi ở đầu: "(Khung tham khảo – thầy cô đối chiếu mẫu chính thức của đơn vị xét duyệt)". Không tự đặt thang điểm và gọi là quy định.`}
 Thể thức: có Quốc hiệu "CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM" / "Độc lập – Tự do – Hạnh phúc" khi là đơn/văn bản; tên mẫu viết hoa ("# "); phần nơi nhận, địa danh ngày tháng, chữ ký. Trường thiếu → [CẦN BỔ SUNG]. Bảng dùng Markdown.
 Phiếu dành cho Hội đồng: để trống ô điểm/nhận xét. Phiếu tự đánh giá: ghi rõ "PHIẾU TỰ ĐÁNH GIÁ THAM KHẢO – không phải phiếu của Hội đồng".
-${RULES}\n\n===== THÔNG TIN =====\n${info()}\n\n===== NỘI DUNG SÁNG KIẾN (tóm) =====\n${sum}\n\n===== QUY ĐỊNH/MẪU ĐỊA PHƯƠNG =====\n${local||'(không có)'}`,0.3);
+${RULES}\n${provincePrompt()}\n${findProvince(doc.f.province)?.formPrompts?.[k]||''}\n\n===== THÔNG TIN =====\n${info()}\n\n===== NỘI DUNG SÁNG KIẾN (tóm) =====\n${sum}\n\n===== QUY ĐỊNH/MẪU ĐỊA PHƯƠNG =====\n${local||'(không có)'}`,0.3);
   renderFormsOut();autosave();}});
 
 /* ---------- Module 5 score ---------- */
-function rubricNote(){$('rubricNote').innerHTML=filesOf('phieucham').length?'<b>✓ Đã có phiếu chấm tải lên</b> — AI sẽ đọc tiêu chí, điểm tối đa và chấm theo đó.':'Chưa tải phiếu chấm → dùng <b>bộ tiêu chí THAM KHẢO</b> (tính mới, tính sáng tạo, khả năng áp dụng, hiệu quả, phạm vi ảnh hưởng, hình thức trình bày) — <b>không phải quy định địa phương</b>. Tải phiếu chấm thật ở tab ① (loại “Phiếu chấm”).';}
-$('runScore').onclick=e=>run(e.target,async()=>{if(!doc.report)throw new Error('Cần có báo cáo ở tab ③ trước.');const pc=filesText(['phieucham'],20000);
- doc.score=await callGemini(`Bạn là chuyên gia thẩm định sáng kiến ngành giáo dục. Chấm điểm DỰ KIẾN, THAM KHẢO cho báo cáo sáng kiến dưới đây.
-${pc?'Dùng ĐÚNG phiếu chấm người dùng cung cấp: liệt kê từng tiêu chí, điểm tối đa, trọng số đúng như phiếu.':'Chưa có phiếu chấm chính thức: dùng bộ tiêu chí tham khảo (Tính mới; Tính sáng tạo; Khả năng áp dụng; Hiệu quả thực tế; Phạm vi ảnh hưởng; Hình thức trình bày). Mở đầu bằng dòng: "BỘ TIÊU CHÍ THAM KHẢO – KHÔNG PHẢI THANG ĐIỂM CHÍNH THỨC CỦA ĐỊA PHƯƠNG". Chấm theo mức (Tốt/Khá/Đạt/Chưa đạt) kèm điểm gợi ý thang 10 cho mỗi tiêu chí.'}
-Kết quả gồm: 1) Bảng | Tiêu chí | Điểm tối đa | Điểm dự kiến | Căn cứ |; 2) Tổng điểm dự kiến; 3) Ưu điểm; 4) Hạn chế; 5) Nội dung cần bổ sung, cách cải thiện cụ thể; 6) Khả năng đáp ứng điều kiện công nhận (thận trọng). Phần có [CẦN BỔ SUNG] thì không được cho điểm như đã có dữ liệu.
-Kết thúc bằng: "Điểm AI chỉ mang tính tham khảo, không thay thế kết quả của Hội đồng có thẩm quyền."
-${RULES}\n\n===== PHIẾU CHẤM =====\n${pc||'(không có)'}\n\n===== BÁO CÁO =====\n${doc.report.slice(0,60000)}`,0.2);$('score').value=doc.score;});
+function rubricNote(){const p=findProvince(doc.f.province);$('runScore').textContent=p?.scorePrompt?'Đánh giá tham khảo':'🎯 Chấm điểm tham khảo';$('rubricNote').innerHTML=filesOf('phieucham').length?'<b>✓ Đã có phiếu chấm tải lên</b> — AI sẽ đọc đúng tiêu chí và cách đánh giá trong phiếu, không tự đặt thang điểm.':p?.scorePrompt?esc('Vĩnh Long: theo Mẫu 01 QĐ 62/2026/QĐ-UBND, hai tiêu chí Đạt/Không đạt; không phải thang điểm số. Thiếu căn cứ → Chưa đủ căn cứ. Phiếu chấm tải lên được ưu tiên; cần kiểm tra phù hợp quy định.'): 'Chưa tải phiếu chấm → dùng <b>bộ tiêu chí THAM KHẢO</b> (tính mới, tính sáng tạo, khả năng áp dụng, hiệu quả, phạm vi ảnh hưởng, hình thức trình bày) — <b>không phải quy định địa phương</b>. Tải phiếu chấm thật ở tab ① (loại “Phiếu chấm”).';}
+$('runScore').onclick=e=>run(e.target,async()=>{if(!doc.report)throw new Error('Cần có báo cáo ở tab ③ trước.');const pc=filesText(['phieucham'],20000),official=!pc&&findProvince(doc.f.province)?.scorePrompt;
+ doc.score=await callGemini(`Bạn là chuyên gia thẩm định sáng kiến ngành giáo dục. Đánh giá DỰ KIẾN, THAM KHẢO cho báo cáo sáng kiến dưới đây.
+${pc?'Dùng ĐÚNG phiếu chấm người dùng cung cấp: liệt kê tiêu chí và cách đánh giá đúng như phiếu; chỉ ghi điểm tối đa/trọng số nếu phiếu có, không tự đặt thang điểm.':official?official:'Chưa có phiếu chấm chính thức: dùng bộ tiêu chí tham khảo (Tính mới; Tính sáng tạo; Khả năng áp dụng; Hiệu quả thực tế; Phạm vi ảnh hưởng; Hình thức trình bày). Mở đầu bằng dòng: "BỘ TIÊU CHÍ THAM KHẢO – KHÔNG PHẢI THANG ĐIỂM CHÍNH THỨC CỦA ĐỊA PHƯƠNG". Chấm theo mức (Tốt/Khá/Đạt/Chưa đạt) kèm điểm gợi ý thang 10 cho mỗi tiêu chí.'}
+${pc?'Kết quả theo đúng tiêu chí, cách phân loại/các cột của phiếu tải lên; kèm căn cứ, ưu điểm, hạn chế và việc cần bổ sung. Không tự đặt điểm hay thang điểm nếu phiếu không quy định.':official?'Kết quả gồm: bảng | Tiêu chí | Đạt/Không đạt/Chưa đủ căn cứ | Căn cứ |; nhận xét ưu điểm, hạn chế, việc cần bổ sung; kết luận dự kiến, không thay thế Hội đồng.':`Kết quả gồm: 1) Bảng | Tiêu chí | Điểm tối đa | Điểm dự kiến | Căn cứ |; 2) Tổng điểm dự kiến; 3) Ưu điểm; 4) Hạn chế; 5) Nội dung cần bổ sung, cách cải thiện cụ thể; 6) Khả năng đáp ứng điều kiện công nhận (thận trọng). Phần có [CẦN BỔ SUNG] thì không được cho điểm như đã có dữ liệu.`}
+Kết thúc bằng: "Kết quả AI chỉ mang tính tham khảo, không thay thế kết quả của Hội đồng có thẩm quyền."
+${RULES}\n${provincePrompt()}\n===== QUY ĐỊNH/MẪU ĐỊA PHƯƠNG =====\n${filesText(['huongdan','mau'],10000)||'(không có)'}\n\n===== PHIẾU CHẤM =====\n${pc||'(không có)'}\n\n===== BÁO CÁO =====\n${doc.report.slice(0,60000)}`,0.2);$('score').value=doc.score;});
 
 /* ---------- Module 6 check ---------- */
 function refreshMissing(){const all=[doc.report,...Object.values(doc.forms||{})].join('\n');const m=[...new Set(all.match(/\[CẦN[^\]]*\]/g)||[])];
@@ -188,7 +198,7 @@ $('runCheck').onclick=e=>run(e.target,async()=>{if(!doc.report)throw new Error('
  doc.check=await callGemini(`Kiểm tra chất lượng và tính trung thực của báo cáo sáng kiến. Trả lời từng mục với kết luận (Đạt / Cần sửa / Không rõ), dẫn chứng câu cụ thể và đề xuất sửa:
 1. Nội dung phù hợp tên đề tài? 2. Giải quyết đúng vấn đề thực tế? 3. Giải pháp cụ thể, đủ mục tiêu/nội dung/cách làm/ví dụ/kết quả/minh chứng? 4. Điểm mới có căn cứ? 5. Có số liệu trước và sau? 6. Số liệu nhất quán (cộng tổng, tỉ lệ, sĩ số khớp nhau)? 7. Minh chứng cho từng giải pháp? 8. Trùng lặp nội dung? 9. Trích dẫn nguồn? 10. Văn bản có thể hết hiệu lực/bị thay thế (liệt kê, khuyên kiểm tra trên vbpl.vn / thuvienphapluat)? 11. Nội dung thiếu căn cứ, có dấu hiệu bịa (số liệu, tên người, kết quả không có trong thông tin người dùng cung cấp)? 12. Dấu hiệu sao chép (văn mẫu sáo rỗng, đoạn giống SKKN cũ tải lên)?
 Cuối cùng: danh sách việc cần làm ưu tiên trước khi nộp. Không khẳng định chắc chắn về hiệu lực văn bản nếu không có căn cứ.
-===== THÔNG TIN THẬT NGƯỜI DÙNG CUNG CẤP =====\n${info()}\n${filesText(['chuyenmon'],8000)}\n===== SKKN CŨ (so sao chép) =====\n${filesText(['skkncu'],10000)||'(không có)'}\n===== BÁO CÁO =====\n${doc.report.slice(0,60000)}`,0.2);$('check').value=doc.check;});
+${RULES}\n${provincePrompt()}\n===== QUY ĐỊNH/MẪU ĐỊA PHƯƠNG =====\n${filesText(['huongdan','mau'],10000)||'(không có)'}\n===== THÔNG TIN THẬT NGƯỜI DÙNG CUNG CẤP =====\n${info()}\n${filesText(['chuyenmon'],8000)}\n===== SKKN CŨ (so sao chép) =====\n${filesText(['skkncu'],10000)||'(không có)'}\n===== BÁO CÁO =====\n${doc.report.slice(0,60000)}`,0.2);$('check').value=doc.check;});
 
 /* ---------- Progress ---------- */
 function progress(){const req=['topic','author','unit','year','before','solutions','results'];let p=req.filter(k=>(doc.f[k]||'').trim()).length/req.length*30;
